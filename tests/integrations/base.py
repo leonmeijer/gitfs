@@ -94,7 +94,7 @@ class BaseTest:
 
         lines = (line.split() for line in lines)
 
-        return ["{}-{}".format(tokens[1].replace(":", "-"), tokens[3][:10]) for tokens in lines]
+        return ["{}-{}".format(tokens[1], tokens[3][:10]) for tokens in lines]
 
     def get_commit_dates(self):
         return list(set(self.sh.git.log("--pretty=%ad", "--date=short").splitlines()))
@@ -125,17 +125,23 @@ class GitFSLog:
 
     def _read_data(self):
         # file should be opened in non-blocking mode, so this will
-        # return None if it can't read any data
-        data = os.read(self.file_descriptor, 2048).decode().splitlines(True)
-        if not data:
+        # return empty bytes if it can't read any data
+        try:
+            raw = os.read(self.file_descriptor, 4096)
+        except BlockingIOError:
             return False
+        if not raw:
+            return False
+        data = raw.decode().splitlines(True)
         if self._partial_line:
             data[0] = self._partial_line + data[0]
         if not data[-1].endswith("\n"):
             self._partial_line = data[-1]
-            data = data[:-1]  # discard the partial line
+            data = data[:-1]  # hold back the partial line
         else:
             self._partial_line = None
+        if not data:
+            return False
         self.line_buffer.extend(data)
         return True
 

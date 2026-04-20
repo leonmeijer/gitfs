@@ -19,7 +19,7 @@ import resource
 import sys
 
 from mfusepy import FUSE
-from pygit2 import Keypair, RemoteCallbacks, UserPass
+from pygit2 import Keypair, KeypairFromAgent, RemoteCallbacks, UserPass
 
 from gitfs import __version__
 from gitfs.router import Router
@@ -47,6 +47,8 @@ def parse_args(parser):
 def get_credentials(args):
     if args.password:
         credentials = UserPass(args.username, args.password)
+    elif args.use_agent:
+        credentials = KeypairFromAgent(args.ssh_user)
     else:
         key_path = args.ssh_key
         pub_path = key_path + ".pub"

@@ -149,7 +149,7 @@ class CurrentView(PassthroughView):
         Executes chmod on the file at os level and then it commits the change.
         """
         str_mode = (f"{mode:o}")[-4:]
-        if str_mode not in ["0755", "0644"]:
+        if str_mode not in ["0755", "0644", "755", "644"]:
             raise FuseOSError(errno.EINVAL)
 
         result = super().chmod(path, mode)

@@ -42,9 +42,9 @@ class TestReadCommitView(BaseTest):
         for name, value in attrs.items():
             assert getattr(stats, name) == value
 
-        st_time = "{} {}".format(self.today, "-".join(commit.split("-")[:-1]))
+        st_time = "{} {}".format(self.today, commit.rsplit("-", 1)[0])
 
-        format = "%Y-%m-%d %H-%M-%S"
+        format = "%Y-%m-%d %H:%M:%S"
         ctime = datetime.fromtimestamp(stats.st_ctime).strftime(format)
         mtime = datetime.fromtimestamp(stats.st_ctime).strftime(format)
 

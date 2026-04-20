@@ -23,7 +23,7 @@ def prepare_routes(args):
 
     routes.append(
         (
-            rf"^/{args.history_path}/(?P<date>\d{{4}}-\d{{1,2}}-\d{{1,2}})/(?P<time>\d{{2}}-\d{{2}}-\d{{2}})-(?P<commit_sha1>[0-9a-f]{{10}})",
+            rf"^/{args.history_path}/(?P<date>\d{{4}}-\d{{1,2}}-\d{{1,2}})/(?P<time>\d{{2}}[:-]\d{{2}}[:-]\d{{2}})-(?P<commit_sha1>[0-9a-f]{{10}})",
             CommitView,
         )
     )

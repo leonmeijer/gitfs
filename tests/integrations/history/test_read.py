@@ -53,12 +53,12 @@ class TestHistoryView(BaseTest):
         for name, value in attrs.items():
             assert getattr(stats, name) == value
 
-        st_time = "{} {}".format(self.today, "-".join(commit.split("-")[:-1]))
+        st_time = "{} {}".format(self.today, commit.rsplit("-", 1)[0])
 
         assert st_time == self._from_timestamp(stats.st_ctime)
         assert st_time == self._from_timestamp(stats.st_mtime)
 
-    def _from_timestamp(self, timestamp, format="%Y-%m-%d %H-%M-%S", utc=False):
+    def _from_timestamp(self, timestamp, format="%Y-%m-%d %H:%M:%S", utc=False):
         if utc:
             return datetime.utcfromtimestamp(timestamp).strftime(format)
         else:
@@ -66,4 +66,4 @@ class TestHistoryView(BaseTest):
 
     def _get_commit_time(self, index):
         commits = sorted(self.get_commits_by_date(self.today))
-        return "{} {}".format(self.today, "-".join(commits[index].split("-")[:-1]))
+        return "{} {}".format(self.today, commits[index].rsplit("-", 1)[0])

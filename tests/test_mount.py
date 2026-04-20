@@ -197,7 +197,7 @@ class TestMount:
     def test_get_ssh_credentials(self):
         mocked_keypair = MagicMock()
         mocked_credentials = MagicMock(return_value="credentials_obj")
-        mocked_args = MagicMock(ssh_user="user", ssh_key="key", password=None)
+        mocked_args = MagicMock(ssh_user="user", ssh_key="key", password=None, use_agent=False)
         mocked_stat = MagicMock()
         mocked_stat.st_mode = 0o600
 

@@ -40,6 +40,7 @@ class Args:
                 ("password", ("", "string")),
                 ("ssh_key", (self.get_ssh_key, "string")),
                 ("ssh_user", (self.get_ssh_user, "string")),
+                ("use_agent", (False, "bool")),
                 ("foreground", (False, "bool")),
                 ("branch", ("main", "string")),
                 ("allow_other", (False, "bool")),
