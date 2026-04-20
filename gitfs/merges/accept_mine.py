@@ -13,6 +13,9 @@
 # limitations under the License.
 
 
+import os
+import tempfile
+
 import pygit2
 
 from gitfs.log import log
@@ -106,7 +109,7 @@ class AcceptMine(Merger):
     def __call__(self, local_branch, remote_branch, upstream):
         try:
             self.merge(local_branch, remote_branch, upstream)
-        except:
+        except Exception:
             log.exception("AcceptMine: Failed to merge")
             raise
         finally:
@@ -130,13 +133,18 @@ class AcceptMine(Merger):
                     self.repository.index.add(ours.path)
                 else:
                     log.debug("AcceptMine: overwrite all file with our content")
-                    with open(self.repository._full_path(ours.path), "w") as f:
-                        data = self.repository.get(ours.id).data
-                        f.write(
-                            data.decode("utf-8")
-                            if isinstance(data, bytes)
-                            else str(data)
-                        )
+                    target_path = self.repository._full_path(ours.path)
+                    data = self.repository.get(ours.id).data
+                    decoded = (
+                        data.decode("utf-8") if isinstance(data, bytes) else str(data)
+                    )
+                    target_dir = os.path.dirname(target_path)
+                    with tempfile.NamedTemporaryFile(
+                        mode="w", dir=target_dir, delete=False
+                    ) as tmp:
+                        tmp.write(decoded)
+                        tmp_path = tmp.name
+                    os.replace(tmp_path, target_path)
                     self.repository.index.add(ours.path)
         else:
             log.info("AcceptMine: No conflicts to solve")

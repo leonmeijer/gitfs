@@ -13,18 +13,12 @@
 # limitations under the License.
 
 
-import time
-
-
-try:
-    from threading import _Event as Event  # Undocumented py2 class
-except ImportError:
-    from threading import Event
 from functools import wraps
+from threading import Event
 
 
 class while_not:
-    def __init__(self, event, wait=0.2):
+    def __init__(self, event, wait=30):
         self.event = event
         self.wait = wait
 
@@ -38,8 +32,8 @@ class while_not:
             if not isinstance(self.event, Event):
                 raise TypeError(f"{self.event} should be of type threading.Event")
 
-            while self.event.is_set():
-                time.sleep(self.wait)
+            if self.event.is_set():
+                self.event.wait(timeout=self.wait)
 
             return f(obj, *args, **kwargs)
 

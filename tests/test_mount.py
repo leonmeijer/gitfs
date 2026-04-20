@@ -198,9 +198,17 @@ class TestMount:
         mocked_keypair = MagicMock()
         mocked_credentials = MagicMock(return_value="credentials_obj")
         mocked_args = MagicMock(ssh_user="user", ssh_key="key", password=None)
+        mocked_stat = MagicMock()
+        mocked_stat.st_mode = 0o600
 
-        with patch.multiple(
-            "gitfs.mounter", Keypair=mocked_keypair, RemoteCallbacks=mocked_credentials
+        with (
+            patch.multiple(
+                "gitfs.mounter",
+                Keypair=mocked_keypair,
+                RemoteCallbacks=mocked_credentials,
+            ),
+            patch("gitfs.mounter.os.path.exists", return_value=True),
+            patch("gitfs.mounter.os.stat", return_value=mocked_stat),
         ):
             assert get_credentials(mocked_args) == "credentials_obj"
 

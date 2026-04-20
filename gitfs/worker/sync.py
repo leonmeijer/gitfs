@@ -146,7 +146,7 @@ class SyncWorker(Peasant):
                 self.merge()
                 log.debug("Merge done with success, ready to push")
                 need_to_push = True
-            except:
+            except Exception:
                 log.exception("Merge failed")
                 return False
 

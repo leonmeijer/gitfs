@@ -15,7 +15,26 @@
 
 import threading
 
-from atomiclong import AtomicLong
+
+class _AtomicCounter:
+    """Thread-safe integer counter. Replaces unmaintained atomiclong package."""
+
+    def __init__(self, val=0):
+        self._val = val
+        self._lock = threading.Lock()
+
+    def increment(self, n=1):
+        with self._lock:
+            self._val += n
+
+    def decrement(self, n=1):
+        with self._lock:
+            self._val -= n
+
+    @property
+    def value(self):
+        with self._lock:
+            return self._val
 
 
 syncing = threading.Event()
@@ -34,6 +53,6 @@ read_only = threading.Event()
 fetch = threading.Event()
 shutting_down = threading.Event()
 
-writers = AtomicLong(0)
+writers = _AtomicCounter(0)
 
 remote_operation = threading.Lock()

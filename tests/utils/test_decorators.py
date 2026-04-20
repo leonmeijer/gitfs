@@ -67,19 +67,13 @@ class TestWhileNotDecorator:
                 not_now(mocked_method)(mocked_self, "arg", kwarg="kwarg")
 
     def test_while_not(self):
-        an_event = Event()
-        an_event.set()
-
+        an_event = MagicMock(spec=Event)
+        an_event.is_set.return_value = True
         mocked_method = MagicMock()
-        mocked_time = MagicMock()
-
-        mocked_time.sleep.side_effect = lambda x: an_event.clear()
         mocked_method.__name__ = "name"
 
-        with patch.multiple(
-            "gitfs.utils.decorators.while_not", wraps=MockedWraps, time=mocked_time
-        ):
-            not_now = while_not(an_event)
+        with patch.multiple("gitfs.utils.decorators.while_not", wraps=MockedWraps):
+            not_now = while_not(an_event, wait=30)
             not_now(mocked_method)("arg", kwarg="kwarg")
 
-            mocked_time.sleep.assert_called_once_with(0.2)
+            an_event.wait.assert_called_once_with(timeout=30)

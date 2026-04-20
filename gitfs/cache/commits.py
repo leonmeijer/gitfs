@@ -23,16 +23,22 @@ class CommitCache:
     def __init__(self, repo):
         self.repo = repo
         self.__commits = {}
+        self._last_head = None
 
     def update(self):
-        new_commits = {}
         head = self.repo.lookup_reference("HEAD").resolve().target
+
+        if head == self._last_head:
+            return
+
+        self._last_head = head
+        new_commits = {}
 
         for commit in self.repo.walk(head, GIT_SORT_TIME):
             commit_time = datetime.fromtimestamp(commit.commit_time)
 
             date = commit_time.date().strftime("%Y-%m-%d")
-            time = commit_time.time().strftime("%H-%M-%S")
+            time = commit_time.time().strftime("%H:%M:%S")
 
             if date not in new_commits:
                 new_commits[date] = []

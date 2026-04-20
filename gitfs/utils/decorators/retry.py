@@ -28,7 +28,7 @@ class retry:
             while self.times:
                 try:
                     return f(*args, **kwargs)
-                except:
+                except Exception:
                     time.sleep(self.each)
 
                 if isinstance(self.times, int) and not isinstance(self.times, bool):

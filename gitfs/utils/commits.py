@@ -16,10 +16,11 @@
 class CommitsList:
     def __init__(self, commits=None, hashes=None):
         self.commits = commits or []
-        self.hashes = hashes or []
+        self.hashes = list(hashes) if hashes else []
+        self._hashes_set = set(self.hashes)
 
     def __contains__(self, commit):
-        return str(commit.id) in self.hashes
+        return str(commit.id) in self._hashes_set
 
     def index(self, commit):
         return self.hashes.index(str(commit.id))
@@ -33,8 +34,10 @@ class CommitsList:
         return self.commits.__iter__()
 
     def append(self, commit):
+        h = str(commit.id)
         self.commits.append(commit)
-        self.hashes.append(str(commit.id))
+        self.hashes.append(h)
+        self._hashes_set.add(h)
 
     def __repr__(self):
         return self.commits.__repr__()

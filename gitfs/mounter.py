@@ -14,6 +14,7 @@
 
 
 import argparse
+import os
 import resource
 import sys
 
@@ -47,7 +48,19 @@ def get_credentials(args):
     if args.password:
         credentials = UserPass(args.username, args.password)
     else:
-        credentials = Keypair(args.ssh_user, args.ssh_key + ".pub", args.ssh_key, "")
+        key_path = args.ssh_key
+        pub_path = key_path + ".pub"
+        if not os.path.exists(key_path):
+            raise FileNotFoundError(f"SSH private key not found: {key_path}")
+        if not os.path.exists(pub_path):
+            raise FileNotFoundError(f"SSH public key not found: {pub_path}")
+        key_mode = os.stat(key_path).st_mode
+        if key_mode & 0o077:
+            raise PermissionError(
+                f"SSH key {key_path!r} has insecure permissions {oct(key_mode)}: "
+                "run chmod 600"
+            )
+        credentials = Keypair(args.ssh_user, pub_path, key_path, "")
     return RemoteCallbacks(credentials=credentials)
 
 

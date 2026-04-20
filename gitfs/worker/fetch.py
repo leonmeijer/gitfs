@@ -51,6 +51,6 @@ class FetchWorker(Peasant):
                     log.info("Fetch done")
                 else:
                     log.debug("Nothing to fetch")
-            except:
+            except Exception:
                 fetch_successful.clear()
                 log.exception("Fetch failed")

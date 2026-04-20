@@ -16,6 +16,7 @@
 import errno
 import os
 import re
+import threading
 
 from mfusepy import FuseOSError
 
@@ -31,6 +32,7 @@ class CurrentView(PassthroughView):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.dirty = {}
+        self._dirty_lock = threading.Lock()
 
         self.current_path = kwargs.get("current_path", "current")
 
@@ -98,7 +100,8 @@ class CurrentView(PassthroughView):
             raise FuseOSError(errno.EFBIG)
 
         result = super().write(path, buf, offset, fh)
-        self.dirty[fh] = {"message": f"Update {path}", "stage": True}
+        with self._dirty_lock:
+            self.dirty[fh] = {"message": f"Update {path}", "stage": True}
 
         log.debug("CurrentView: Wrote %s to %s", len(buf), path)
         return result
@@ -111,17 +114,17 @@ class CurrentView(PassthroughView):
         keep_path = f"{path}/.keep"
         full_path = self.repo._full_path(keep_path)
         if not os.path.exists(keep_path):
-            global writers
             fh = os.open(full_path, os.O_WRONLY | os.O_CREAT)
-            writers += 1
+            writers.increment()
             log.info("CurrentView: Open %s for write", full_path)
 
             super().chmod(keep_path, 0o644)
 
-            self.dirty[fh] = {
-                "message": f"Create the {path} directory",
-                "stage": True,
-            }
+            with self._dirty_lock:
+                self.dirty[fh] = {
+                    "message": f"Create the {path} directory",
+                    "stage": True,
+                }
 
             self.release(keep_path, fh)
 
@@ -133,7 +136,8 @@ class CurrentView(PassthroughView):
         fh = self.open_for_write(path, os.O_WRONLY | os.O_CREAT)
         super().chmod(path, mode)
 
-        self.dirty[fh] = {"message": f"Created {path}", "stage": True}
+        with self._dirty_lock:
+            self.dirty[fh] = {"message": f"Created {path}", "stage": True}
 
         log.debug("CurrentView: Created %s", path)
         return fh
@@ -177,10 +181,10 @@ class CurrentView(PassthroughView):
     @write_operation
     @not_in("ignore", check=["path"])
     def open_for_write(self, path, flags):
-        global writers
         fh = self.open_for_read(path, flags)
-        writers += 1
-        self.dirty[fh] = {"message": f"Opened {path} for write", "stage": False}
+        writers.increment()
+        with self._dirty_lock:
+            self.dirty[fh] = {"message": f"Opened {path} for write", "stage": False}
 
         log.debug("CurrentView: Open %s for write", path)
         return fh
@@ -206,17 +210,19 @@ class CurrentView(PassthroughView):
         Check for path if something was written to. If so, commit and push
         the changed to upstream.
         """
+        message = None
+        should_stage = False
 
-        if fh in self.dirty:
-            message = self.dirty[fh]["message"]
-            should_stage = self.dirty[fh].get("stage", False)
-            del self.dirty[fh]
+        with self._dirty_lock:
+            if fh in self.dirty:
+                message = self.dirty[fh]["message"]
+                should_stage = self.dirty[fh].get("stage", False)
+                del self.dirty[fh]
+                writers.decrement()
 
-            global writers
-            writers -= 1
-            if should_stage:
-                log.debug("CurrentView: Staged %s for commit", path)
-                self._stage(add=path, message=message)
+        if should_stage and message:
+            log.debug("CurrentView: Staged %s for commit", path)
+            self._stage(add=path, message=message)
 
         log.debug("CurrentView: Release %s", path)
         return os.close(fh)
@@ -300,6 +306,10 @@ class CurrentView(PassthroughView):
             return path
 
         if path.startswith("/"):
-            return path[1:]
+            path = path[1:]
 
-        return path
+        normalized = os.path.normpath(path)
+        if normalized.startswith(".."):
+            raise FuseOSError(errno.EACCES)
+
+        return normalized

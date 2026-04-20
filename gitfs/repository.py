@@ -45,6 +45,7 @@ class Repository:
     def __init__(self, repository, commits=None):
         self._repo = repository
         self.commits = commits or CommitCache(self)
+        self._blob_cache = {}
 
         self.behind = False
 
@@ -74,7 +75,11 @@ class Repository:
         remote_branch = self._repo.branches.remote.get(reference)
         local_branch = self._repo.branches.local.get(branch)
 
-        # TODO: check for missing branches
+        if remote_branch is None or local_branch is None:
+            log.warning(
+                "Repository: branch '%s' or remote '%s' not found", branch, reference
+            )
+            return False, False
 
         if remote_branch.target == local_branch.target:
             return False, False
@@ -175,7 +180,11 @@ class Repository:
         if parents is None:
             parents = [self._repo.revparse_single(ref).id]
 
-        return self._repo.create_commit(ref, author, committer, message, tree, parents)
+        new_commit = self._repo.create_commit(
+            ref, author, committer, message, tree, parents
+        )
+        self._blob_cache.clear()
+        return new_commit
 
     @classmethod
     def clone(cls, remote_url, path, branch=None, credentials=None):
@@ -191,12 +200,13 @@ class Repository:
 
         """
 
-        # try:
-        repo = clone_repository(
-            remote_url, path, checkout_branch=branch, callbacks=credentials
-        )
-        # except Exception:
-        # log.error("Error on cloning the repository: ", exc_info=True)
+        try:
+            repo = clone_repository(
+                remote_url, path, checkout_branch=branch, callbacks=credentials
+            )
+        except Exception:
+            log.error("Error on cloning the repository: ", exc_info=True)
+            raise
 
         repo.checkout_head()
         return cls(repo)
@@ -282,7 +292,7 @@ class Repository:
             return self._get_git_object(
                 tree, path_components[-1], path_components, lambda entry: entry.filemode
             )
-        except:
+        except Exception:
             return GIT_FILEMODE_TREE
 
     def get_git_object(self, tree, path):
@@ -355,7 +365,11 @@ class Repository:
         :returns: the data contained by the blob object.
         :rtype: str
         """
-        return self.get_git_object(tree, path).data
+        tree_id = str(tree.id) if hasattr(tree, "id") else str(tree)
+        key = (tree_id, path)
+        if key not in self._blob_cache:
+            self._blob_cache[key] = self.get_git_object(tree, path).data
+        return self._blob_cache[key]
 
     def get_commit_dates(self):
         """
@@ -439,7 +453,12 @@ class Repository:
     def _full_path(self, partial):
         if partial.startswith("/"):
             partial = partial[1:]
-        return os.path.join(self._repo.workdir, partial)
+        full = os.path.join(self._repo.workdir, partial)
+        repo_real = os.path.realpath(self._repo.workdir)
+        full_real = os.path.realpath(full)
+        if not full_real.startswith(repo_real + os.sep) and full_real != repo_real:
+            raise ValueError(f"Path outside repo: {partial!r}")
+        return full
 
     def find_diverge_commits(self, first_branch, second_branch):
         r"""

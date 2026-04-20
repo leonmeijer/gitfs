@@ -28,8 +28,7 @@ def write_operation(f):
         if not fetch_successful.is_set() or not push_successful.is_set():
             raise FuseOSError(EROFS)
 
-        global writers
-        writers += 1
+        writers.increment()
 
         if syncing.is_set():
             log.debug("WriteOperation: Wait until syncing is done")
@@ -38,7 +37,7 @@ def write_operation(f):
         try:
             result = f(*args, **kwargs)
         finally:
-            writers -= 1
+            writers.decrement()
 
         return result
 

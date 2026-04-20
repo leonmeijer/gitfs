@@ -95,7 +95,7 @@ class TestAcceptMine:
     def test_solve_conflicts_both_update_a_file(self):
         mocked_theirs = MagicMock()
         mocked_ours = MagicMock(id="id", path="path")
-        mocked_full = MagicMock(return_value="full_path")
+        mocked_full = MagicMock(return_value="/full_path/file.txt")
         mocked_repo = MagicMock(_full_path=mocked_full)
 
         mocked_repo.get().data = "data"
@@ -103,19 +103,28 @@ class TestAcceptMine:
         def conflicts():
             yield None, mocked_theirs, mocked_ours
 
-        mock_path = "gitfs.merges.accept_mine.open"
-        with patch(mock_path, create=True) as mocked_open:
-            mocked_file = MagicMock(spec=TextIOWrapper)
-            mocked_open.return_value = mocked_file
+        mocked_tmp = MagicMock()
+        mocked_tmp.__enter__ = MagicMock(return_value=mocked_tmp)
+        mocked_tmp.__exit__ = MagicMock(return_value=False)
+        mocked_tmp.name = "/full_path/tmp_file"
 
+        with (
+            patch(
+                "gitfs.merges.accept_mine.tempfile.NamedTemporaryFile",
+                return_value=mocked_tmp,
+            ) as mocked_ntf,
+            patch("gitfs.merges.accept_mine.os.replace") as mocked_replace,
+        ):
             mine = AcceptMine(mocked_repo)
-
             mine.solve_conflicts(conflicts())
 
             mocked_full.assert_called_once_with("path")
-            mocked_open.assert_called_once_with("full_path", "w")
             mocked_repo.get.assert_has_calls([call("id")])
-            mocked_open().__enter__().write.assert_called_once_with("data")
+            mocked_ntf.assert_called_once_with(
+                mode="w", dir="/full_path", delete=False
+            )
+            mocked_tmp.write.assert_called_once_with("data")
+            mocked_replace.assert_called_once_with("/full_path/tmp_file", "/full_path/file.txt")
             mocked_repo.index.add.assert_called_once_with("path")
 
     def test_merging_strategy(self):

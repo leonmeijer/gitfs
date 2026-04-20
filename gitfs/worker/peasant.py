@@ -28,5 +28,5 @@ class Peasant(Thread):
     def run(self):
         try:
             self.work()
-        except:
+        except Exception:
             log.exception("A worker is not feeling well")
